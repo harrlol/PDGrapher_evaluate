@@ -5,7 +5,7 @@ import argparse
 from pdgrapher import Dataset, PDGrapher, Trainer
 
 import os
-torch.set_num_threads(8)
+torch.set_num_threads(16)
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

@@ -24,6 +24,9 @@ while getopts ":c:d:s:f:o:e:" opt; do
   esac
 done
 
+# make sure outdir exists
+mkdir -p "${output_dir}"
+
 # default values
 with_healthy='A549 MCF7 PC3 VCAP'
 timestamp=$(date +"%Y-%m-%d_%H%M%S")
@@ -37,6 +40,12 @@ echo "Torch data directory: $torch_dir" | tee -a $log_file
 echo "Splits directory: $splits_dir" | tee -a $log_file
 echo "Output directory: $output_dir" | tee -a $log_file
 echo "Number of folds: $n_folds" | tee -a $log_file
+
+cd ./PDGrapher
+echo "##############################################################" | tee -a $log_file
+echo "Using branch: $(git rev-parse --abbrev-ref HEAD)" | tee -a $log_file
+echo "##############################################################" | tee -a $log_file
+cd ..
 
 # Loop through each cell line
 for cell_line in $cell_lines; do
@@ -73,6 +82,7 @@ for cell_line in $cell_lines; do
     mkdir -p "${output_dir}"
     mv "/home/b-evelyntong/hl/examples/PDGrapher/" "${output_dir}"
     mv "${output_dir}/PDGrapher" "${output_dir}/${cell_line}"
+    mv "/home/b-evelyntong/hl/lincs_lvl3_oe/multifold_final.txt" "${output_dir}/${cell_line}/multifold_final.txt"
     mkdir "/home/b-evelyntong/hl/examples/PDGrapher/"
 
 done
