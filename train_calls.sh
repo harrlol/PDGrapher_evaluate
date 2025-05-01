@@ -12,12 +12,13 @@ usage() {
 }
 
 # parse commands
-while getopts ":c:d:s:f:o:e:" opt; do
+while getopts ":c:d:s:f:o:e:p:" opt; do
   case $opt in
     c) cell_lines="$OPTARG" ;;
     o) output_dir="$OPTARG" ;;
     d) torch_dir="$OPTARG" ;;
     s) splits_dir="$OPTARG" ;;
+    p) embed="$OPTARG" ;;
     f) n_folds="$OPTARG" ;;
     e) n_epoch="$OPTARG" ;;
     *) usage ;;
@@ -51,6 +52,7 @@ cd ..
 for cell_line in $cell_lines; do
 
     echo "Processing ${cell_line}" | tee -a $log_file
+    mkdir -p "${output_dir}/${cell_line}"
 
     # Define the paths
     forward_path="${torch_dir}/data_forward_${cell_line}.pt"
@@ -58,17 +60,35 @@ for cell_line in $cell_lines; do
     edge_index_path="${torch_dir}/edge_index_${cell_line}.pt"
     splits_path="${splits_dir}/genetic/${cell_line}/random/${n_folds}fold/splits.pt"
 
-    # first check if the cell has healthy counterparts
+    # first check if the cell has healthy counterparts, then check embedding
     if echo "$with_healthy" | grep -q "$cell_line"; then
-        echo "Cell line ${cell_line} has healthy counterparts, using forward data." | tee -a $log_file
-        python n_folds_train_call.py --forward_path $forward_path \
-        --backward_path $backward_path --edge_index_path $edge_index_path \
-        --splits_path $splits_path --use_forward_data --n_epoch ${n_epoch} >> $log_file 2>&1
+        if [ -z "$embed" ]; then
+            echo "Cell line ${cell_line} has healthy counterparts, using forward data." | tee -a $log_file
+            python n_folds_train_call.py --forward_path $forward_path \
+            --backward_path $backward_path --edge_index_path $edge_index_path \
+            --splits_path $splits_path --n_epoch ${n_epoch} --use_forward_data \
+            --output_dir "${output_dir}/${cell_line}" >> $log_file 2>&1
+        else
+            echo "Cell line ${cell_line} has healthy counterparts, using forward data and embedding." | tee -a $log_file
+            python n_folds_train_call.py --forward_path $forward_path \
+            --backward_path $backward_path --edge_index_path $edge_index_path \
+            --splits_path $splits_path --embedding_path $embed --n_epoch ${n_epoch} \
+            --output_dir "${output_dir}/${cell_line}" --use_forward_data >> $log_file 2>&1
+        fi
     else
-        echo "Cell line ${cell_line} does not have healthy counterparts, not using forward data." | tee -a $log_file
-        python n_folds_train_call.py --forward_path $forward_path \
-        --backward_path $backward_path --edge_index_path $edge_index_path \
-        --splits_path $splits_path --n_epoch ${n_epoch} >> $log_file 2>&1
+        if [ -z "$embed" ]; then
+            echo "Cell line ${cell_line} does not have healthy counterparts, not using forward data." | tee -a $log_file
+            python n_folds_train_call.py --forward_path $forward_path \
+            --backward_path $backward_path --edge_index_path $edge_index_path \
+            --splits_path $splits_path --n_epoch ${n_epoch} \
+            --output_dir "${output_dir}/${cell_line}" >> $log_file 2>&1
+        else
+            echo "Cell line ${cell_line} does not have healthy counterparts, not using forward data and using embedding." | tee -a $log_file
+            python n_folds_train_call.py --forward_path $forward_path \
+            --backward_path $backward_path --edge_index_path $edge_index_path \
+            --splits_path $splits_path --embedding_path $embed --n_epoch ${n_epoch} \
+            --output_dir "${output_dir}/${cell_line}" >> $log_file 2>&1
+        fi
     fi
 
     if [ $? -eq 0 ]; then
@@ -77,13 +97,6 @@ for cell_line in $cell_lines; do
         echo "Error occurred during training for ${cell_line}." | tee -a $log_file
         continue
     fi
-
-    # Move output files
-    mkdir -p "${output_dir}"
-    mv "/home/b-evelyntong/hl/examples/PDGrapher/" "${output_dir}"
-    mv "${output_dir}/PDGrapher" "${output_dir}/${cell_line}"
-    mv "/home/b-evelyntong/hl/lincs_lvl3_oe/multifold_final.txt" "${output_dir}/${cell_line}/multifold_final.txt"
-    mkdir "/home/b-evelyntong/hl/examples/PDGrapher/"
 
 done
 

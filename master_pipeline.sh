@@ -27,21 +27,9 @@ done
 
 # check current branch
 cd PDGrapher || { echo "❌ Could not cd into PDGrapher"; exit 1; }
-
-# just in case
 git fetch
-
-if git show-ref --verify --quiet "refs/heads/$branch"; then
-    echo "📍 Local branch '$branch' exists."
-elif git ls-remote --exit-code --heads origin "$branch" &> /dev/null; then
-    echo "🌐 Branch '$branch' found on remote. Checking out..."
-    git checkout -b "$branch" "origin/$branch"
-else
-    echo "❌ Branch '$branch' does not exist locally or remotely. Exiting."
-    exit 1
-fi
-
 current_branch=$(git rev-parse --abbrev-ref HEAD)
+
 if [ "$current_branch" != "$branch" ]; then
     echo "🔄 Switching to branch: $branch"
     git checkout "$branch"
@@ -170,24 +158,49 @@ echo "Generating splits for oe..."
 
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# call a training run for xpr
-echo "Training for xpr..."
-bash train_calls.sh \
-  -c  "${cell_lines_xpr}" \
-  -d "${oe_dir}/torch_export/xpr" \
-  -s "${oe_dir}/splits/xpr" \
-  -o "${project_dir}/xpr" \
-  -f ${n_folds} \
-  -e ${n_epoch} \
+# check if we will require pre-computed embeddings
+if [[ "$branch" == *"embed"* ]]; then
+  # call a training run for xpr
+  echo "Training for xpr..."
+  bash train_calls.sh \
+    -c  "${cell_lines_xpr}" \
+    -d "${oe_dir}/torch_export/xpr" \
+    -s "${oe_dir}/splits/xpr" \
+    -o "${project_dir}/xpr" \
+    -p "/home/b-evelyntong/hl/embedding_matrix_xpr.pt" \
+    -f ${n_folds} \
+    -e ${n_epoch}
 
-# call a training run for oe
-echo "Training for oe..."
-bash train_calls.sh \
-  -c  "${cell_lines_oe}" \
-  -d "${oe_dir}/torch_export/oe" \
-  -s "${oe_dir}/splits/oe" \
-  -o "${project_dir}/oe" \
-  -f ${n_folds} \
-  -e ${n_epoch} \
+  # call a training run for oe
+  echo "Training for oe..."
+  bash train_calls.sh \
+    -c  "${cell_lines_oe}" \
+    -d "${oe_dir}/torch_export/oe" \
+    -s "${oe_dir}/splits/oe" \
+    -o "${project_dir}/oe" \
+    -p "/home/b-evelyntong/hl/embedding_matrix_oe.pt" \
+    -f ${n_folds} \
+    -e ${n_epoch}
+else
+  # call a training run for xpr
+  echo "Training for xpr..."
+  bash train_calls.sh \
+    -c  "${cell_lines_xpr}" \
+    -d "${oe_dir}/torch_export/xpr" \
+    -s "${oe_dir}/splits/xpr" \
+    -o "${project_dir}/xpr" \
+    -f ${n_folds} \
+    -e ${n_epoch}
+
+  # call a training run for oe
+  echo "Training for oe..."
+  bash train_calls.sh \
+    -c  "${cell_lines_oe}" \
+    -d "${oe_dir}/torch_export/oe" \
+    -s "${oe_dir}/splits/oe" \
+    -o "${project_dir}/oe" \
+    -f ${n_folds} \
+    -e ${n_epoch}
+fi
 
 echo "Training completed for all cell lines at $(date +"%Y-%m-%d_%H%M%S")"
